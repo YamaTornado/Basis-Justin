@@ -3,9 +3,9 @@
 ## Leitidee
 
 Die eigentliche Flugsoftware (Filter, State Machine, Log-/Telemetrieformate) ist als
-**plattformunabhängige C-Library** (`core/`) von den ESP-IDF-spezifischen Treibern und
-FreeRTOS-Tasks (`firmware/`) getrennt. `core/` hat keine ESP-IDF-Header-Abhängigkeit
-und lässt sich mit einem normalen Host-Compiler bauen und testen.
+**plattformunabhängige C-Library** (`core/`) von den treiber-/task-spezifischen Teilen
+(`firmware/`) getrennt. `core/` hat keine ESP-IDF- oder Arduino-Abhängigkeit und lässt
+sich mit einem normalen Host-Compiler bauen und testen.
 
 Daraus folgt praktisch kostenlos:
 
@@ -15,18 +15,29 @@ Daraus folgt praktisch kostenlos:
 - **Replay**: dasselbe `sim/`-Tool kann statt synthetischer Daten ein echtes,
   auf dem Gerät geschriebenes Logfile einspielen — gleicher Code-Pfad wie im Flug.
 
+`firmware/` läuft auf **FreeRTOS/ESP-IDF als Betriebssystem**, mit dem **Arduino-Core
+als Bibliothek obendrauf** (PlatformIO, `framework = arduino`, siehe unten) — nicht
+umgekehrt. Seit arduino-esp32 3.x ist der Arduino-Core selbst auf ESP-IDF 5.x gebaut,
+d.h. `framework = arduino` liefert bereits FreeRTOS (`xTaskCreate`, `xQueueCreate`, ...)
+und bei Bedarf direkten Zugriff auf ESP-IDF-APIs (`esp_partition`, `esp_timer`, ...) —
+zusätzlich zum kompletten Arduino-Library-Ökosystem (Adafruit-Sensor-Libraries,
+TinyGPS++, ...). Die fünf FreeRTOS-Tasks (`sensor_task`, `estimator_task`,
+`flight_task`, `logger_task`, `telemetry_task`) werden weiterhin explizit selbst
+angelegt (kein `setup()`/`loop()`-Polling) — Arduino liefert nur die Treiber-Bibliotheken,
+nicht die Nebenläufigkeits-Architektur.
+
 ```
-core/                         firmware/                        sim/
-┌───────────────────┐         ┌──────────────────────┐         ┌───────────────────┐
-│ attitude_filter    │  <───── │ tasks/estimator_task  │         │ main.c            │
-│ altitude_filter    │         │ tasks/sensor_task      │         │ profiles.c        │
-│ flight_state       │  <───── │ tasks/flight_task       │         │ (linkt core/ neu) │
-│ log_format         │  <───── │ tasks/logger_task        │        └───────────────────┘
-│ telemetry          │  <───── │ tasks/telemetry_task      │
-│ types.h            │         │ drivers/{imu,baro,gps,lora}│
-└───────────────────┘         └──────────────────────┘
-   reines C, keine                ESP-IDF, FreeRTOS,
-   ESP-IDF Abhängigkeit           I2C/UART/GPIO
+core/                         firmware/ (PlatformIO, framework=arduino)   sim/
+┌───────────────────┐         ┌──────────────────────────┐         ┌───────────────────┐
+│ attitude_filter    │  <───── │ lib/tasks/estimator_task  │         │ main.c            │
+│ altitude_filter    │         │ lib/tasks/sensor_task      │         │ profiles.c        │
+│ flight_state       │  <───── │ lib/tasks/flight_task       │        │ (linkt core/ neu) │
+│ log_format         │  <───── │ lib/tasks/logger_task        │       └───────────────────┘
+│ telemetry          │  <───── │ lib/tasks/telemetry_task      │
+│ types.h            │         │ lib/{imu,baro,gps,lora}_*      │
+└───────────────────┘         │   (Adafruit/TinyGPS++ Wrapper)  │
+   reines C, keine            └──────────────────────────┘
+   ESP-IDF/Arduino-Abh.          FreeRTOS (ESP-IDF) + Arduino-Libraries
 ```
 
 ## Datenfluss (Firmware)
@@ -45,11 +56,42 @@ darf niemals das Deployment verzögern. Deshalb hat `flight_task` die höchste P
 
 | Task            | Rate     | Priorität | Quelle/Ziel                          |
 |-----------------|----------|-----------|---------------------------------------|
-| sensor_task     | 100 Hz   | hoch      | I2C (IMU, Baro), UART (GPS, langsamer) |
+| sensor_task     | 100 Hz   | hoch      | I2C via `Wire`+Adafruit-Libs (IMU, Baro), UART via TinyGPS++ (GPS, langsamer) |
 | estimator_task  | 100 Hz   | hoch      | konsumiert Rohdaten, produziert State  |
-| flight_task     | 100 Hz   | **höchste** | State -> Phase + Pyro-GPIOs           |
-| logger_task     | 50 Hz    | mittel    | State/Raw -> Flash-Partition (Ring)    |
-| telemetry_task  | 5–10 Hz  | niedrig   | State -> LoRa (AT-Commands)            |
+| flight_task     | 100 Hz   | **höchste** | State -> Phase + Pyro-GPIOs (`digitalWrite`) |
+| logger_task     | 50 Hz    | mittel    | State/Raw -> Flash-Partition (Ring, `esp_partition`) |
+| telemetry_task  | 5–10 Hz  | niedrig   | State -> LoRa (AT-Commands via `HardwareSerial`) |
+
+## Build-System: PlatformIO (Arduino-Framework)
+
+`firmware/` ist ein PlatformIO-Projekt (`firmware/platformio.ini`), `framework = arduino`,
+Plattform-Paket von [pioarduino](https://github.com/pioarduino/platform-espressif32)
+(aktuellere arduino-esp32-3.x-Releases als das offizielle PlatformIO-Registry-Paket).
+Layout folgt PlatformIO-Konvention statt ESP-IDF-Komponenten:
+
+```
+firmware/
+  platformio.ini
+  partitions.csv          -- wie zuvor, per board_build.partitions eingebunden
+  include/pin_config.h     -- projektweite Pin-Belegung
+  src/main.cpp             -- setup(): Wire/Sensoren/Queues/Tasks anlegen; loop() ungenutzt
+  lib/
+    imu_lsm9ds1/            -- Wrapper um Adafruit_LSM9DS1
+    baro_bmp280/             -- Wrapper um Adafruit_BMP280
+    gps_m100/                 -- Wrapper um TinyGPS++
+    lora_lr02/                 -- AT-Kommandos über HardwareSerial (kein Arduino-Lib nötig)
+    flash_log/                  -- esp_partition-Ringpuffer (ESP-IDF-API, via Arduino erreichbar)
+    tasks/                       -- die 5 FreeRTOS-Tasks + Queues, wie oben
+```
+
+`core/` wird per `lib_deps = symlink://../core` eingebunden (keine Kopie) — PlatformIOs
+Konvention `include/` + `src/` passt zufällig exakt zum bestehenden CMake-Layout von
+`core/`, d.h. dieselbe Library wird von Host-Tests, `sim/` und der Firmware geteilt.
+
+Jeder Treiber-Wrapper in `lib/` exportiert nur `fc/types.h`-Structs (`fc_imu_sample_t`
+usw.) nach außen — der Rest der Firmware (Tasks) sieht nie eine `Adafruit_*`- oder
+`TinyGPSPlus`-Klasse direkt. Das hält `core/` weiterhin komplett bibliotheksfrei und
+macht einen späteren Wechsel der Sensor-Library lokal auf eine Datei begrenzt.
 
 ## Estimation: pragmatisch statt Voll-EKF
 

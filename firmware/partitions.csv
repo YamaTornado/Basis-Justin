@@ -1,7 +1,7 @@
 # Name,       Type, SubType,  Offset,   Size,     Flags
 # 4 MB flash total. flight_log is a raw partition (no filesystem) written
-# directly by components/drivers/flash_log as a ring buffer of fc_log_format
-# records -- see docs/ARCHITECTURE.md "Logging".
+# directly by lib/flash_log as a ring buffer of fc_log_format records --
+# see docs/ARCHITECTURE.md "Logging".
 nvs,          data, nvs,      0x9000,   0x6000,
 phy_init,     data, phy,      0xf000,   0x1000,
 factory,      app,  factory,  0x10000,  0x170000,
