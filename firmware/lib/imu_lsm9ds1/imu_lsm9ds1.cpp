@@ -5,6 +5,7 @@ static constexpr float DPS_PER_RADPS = 57.29578f;
 
 bool ImuLsm9ds1::begin() {
     if (!lsm_.begin()) {
+        began_ = false;
         return false;
     }
     /* +/-8g / 500dps / 4gauss: same ranges as the earlier hand-rolled
@@ -12,10 +13,14 @@ bool ImuLsm9ds1::begin() {
     lsm_.setupAccel(lsm_.LSM9DS1_ACCELRANGE_8G);
     lsm_.setupGyro(lsm_.LSM9DS1_GYROSCALE_500DPS);
     lsm_.setupMag(lsm_.LSM9DS1_MAGGAIN_4GAUSS);
+    began_ = true;
     return true;
 }
 
 bool ImuLsm9ds1::read(fc_imu_sample_t *out) {
+    if (!began_) {
+        return false;
+    }
     sensors_event_t accel, mag, gyro, temp;
     lsm_.getEvent(&accel, &mag, &gyro, &temp);
 

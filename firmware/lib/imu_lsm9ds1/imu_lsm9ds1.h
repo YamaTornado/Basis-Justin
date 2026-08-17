@@ -21,9 +21,13 @@ class ImuLsm9ds1 {
 
     /* Reads accel+gyro+mag+temp in one shot (the library samples all three
      * sub-sensors together) and fills out. Caller stamps timestamp_us
-     * (see sensor_task.cpp). */
+     * (see sensor_task.cpp). Returns false immediately (without touching
+     * the bus) if begin() never succeeded -- hammering a sensor that isn't
+     * there with I2C transactions every cycle at 100Hz has been observed
+     * to eventually crash rather than just fail cleanly. */
     bool read(fc_imu_sample_t *out);
 
    private:
     Adafruit_LSM9DS1 lsm_{&Wire1};
+    bool began_ = false;
 };

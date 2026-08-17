@@ -13,8 +13,13 @@ class BaroBmp280 {
      * against your board (0x76 is the more common default). */
     bool begin(uint8_t addr = 0x76);
 
+    /* Returns false immediately (without touching the bus) if begin()
+     * never succeeded -- hammering a sensor that isn't there with I2C
+     * transactions every cycle at 100Hz has been observed to eventually
+     * crash the Adafruit_BMP280 library rather than just fail cleanly. */
     bool read(fc_baro_sample_t *out);
 
    private:
     Adafruit_BMP280 bmp_;
+    bool began_ = false;
 };
