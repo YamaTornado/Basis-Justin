@@ -1,0 +1,9 @@
+{
+    "name": "fc_core",
+    "version": "0.1.0",
+    "description": "Portable flight computer core: attitude/altitude filters, flight state machine, log/telemetry binary formats. No ESP-IDF/Arduino dependency -- also built and unit-tested standalone (see CMakeLists.txt) and linked into sim/.",
+    "build": {
+        "srcDir": "src",
+        "includeDir": "include"
+    }
+}
