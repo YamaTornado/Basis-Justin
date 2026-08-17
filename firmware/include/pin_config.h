@@ -1,8 +1,11 @@
 #pragma once
 
-/* Pin assignments -- TODO: verify against actual wiring once the board is
- * assembled. Chosen to avoid ESP32-S3 strapping pins (0, 3, 45, 46) and the
- * native USB pins (19, 20); otherwise arbitrary general-purpose GPIOs.
+/* Pin assignments -- board is an ESP32-S3 SuperMini with only the outer
+ * header populated/accessible: GPIO 1-13 available, nothing else. GPIO 3 is
+ * still avoided (strapping pin, selects JTAG signal source at boot) even
+ * though it's in range, to leave one fewer thing to debug if boot gets
+ * weird. GPIO 11-13 are left free for later use (e.g. a battery ADC
+ * reading, see the TODO in telemetry_task.cpp).
  *
  * Listed in bring-up/test order: GPS first (own UART, easiest to verify
  * standalone via raw NMEA on the serial monitor), then the I2C bus (BMP280
@@ -11,17 +14,17 @@
  * assumption, test with manual AT commands before trusting the driver),
  * then pyro/arm last (never wire live igniters during bring-up). */
 
-#define PIN_GPS_UART_RX 18
-#define PIN_GPS_UART_TX 17
+#define PIN_GPS_UART_RX 1
+#define PIN_GPS_UART_TX 2
 
 /* Shared I2C bus: BMP280 (baro) and LSM9DS1 (IMU) both hang off these two
  * pins -- there's no separate "baro pin", the bus is what's shared. */
-#define PIN_I2C_SDA 8
-#define PIN_I2C_SCL 9
+#define PIN_I2C_SDA 4
+#define PIN_I2C_SCL 5
 
-#define PIN_LORA_UART_RX 16
-#define PIN_LORA_UART_TX 15
+#define PIN_LORA_UART_RX 6
+#define PIN_LORA_UART_TX 7
 
-#define PIN_PYRO_DROGUE 4
-#define PIN_PYRO_MAIN 5
-#define PIN_ARM_SWITCH 6
+#define PIN_PYRO_DROGUE 8
+#define PIN_PYRO_MAIN 9
+#define PIN_ARM_SWITCH 10
