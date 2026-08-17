@@ -92,6 +92,8 @@ static void init_lora() {
 
 void setup() {
     Serial.begin(115200);
+    delay(500); /* give the USB-serial chip a moment to enumerate before the first prints */
+    Serial.println("=== BOOT: flight computer starting ===");
 
     init_nvs();
     init_sensors();
@@ -136,12 +138,19 @@ void setup() {
     xTaskCreate(telemetry_task, "telemetry", 4096, &s_telemetry_cfg, PRIO_TELEMETRY, nullptr);
 
     log_i("main: flight computer up, all tasks started");
-
-    /* All real work happens in the tasks created above; nothing left for
-     * Arduino's own loop task to do. */
-    vTaskDelete(nullptr);
+    Serial.println("=== BOOT: setup() done, entering heartbeat loop ===");
 }
 
+/* Bring-up aid: a dead-simple, unconditional heartbeat completely
+ * independent of sensors/tasks/queues. If this ALSO only shows up after
+ * pressing a key in the serial monitor, that conclusively points at the
+ * monitor/terminal/USB connection, not the firmware -- none of our other
+ * code is involved here at all. */
 void loop() {
-    /* unreachable -- setup() deletes the loop task */
+    static uint32_t last_beat_ms = 0;
+    uint32_t now = millis();
+    if (now - last_beat_ms >= 1000) {
+        last_beat_ms = now;
+        Serial.printf("=== ALIVE t=%lums ===\n", (unsigned long)now);
+    }
 }
