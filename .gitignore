@@ -1,0 +1,14 @@
+# Host builds (core/, sim/)
+build/
+
+# ESP-IDF
+firmware/build/
+firmware/sdkconfig
+firmware/managed_components/
+firmware/dependencies.lock
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

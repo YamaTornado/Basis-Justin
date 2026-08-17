@@ -1,0 +1,5 @@
+idf_component_register(
+    SRCS "lora_lr02.c"
+    INCLUDE_DIRS "include"
+    REQUIRES driver log
+)
