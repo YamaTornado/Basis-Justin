@@ -56,7 +56,7 @@ darf niemals das Deployment verzögern. Deshalb hat `flight_task` die höchste P
 
 | Task            | Rate     | Priorität | Quelle/Ziel                          |
 |-----------------|----------|-----------|---------------------------------------|
-| sensor_task     | 100 Hz   | hoch      | I2C via `Wire`+Adafruit-Libs (IMU, Baro), UART via TinyGPS++ (GPS, langsamer) |
+| sensor_task     | 100 Hz   | hoch      | I2C via `Wire`(Baro)/`Wire1`(IMU)+Adafruit-Libs, UART via TinyGPS++ (GPS, langsamer) |
 | estimator_task  | 100 Hz   | hoch      | konsumiert Rohdaten, produziert State  |
 | flight_task     | 100 Hz   | **höchste** | State -> Phase + Pyro-GPIOs (`digitalWrite`) |
 | logger_task     | 50 Hz    | mittel    | State/Raw -> Flash-Partition (Ring, `esp_partition`) |

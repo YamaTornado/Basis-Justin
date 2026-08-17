@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Adafruit_LSM9DS1.h>
+#include <Wire.h>
 
 #include "fc/types.h"
 
@@ -10,8 +11,10 @@
  * sensor events are in m/s^2 and rad/s) happens here, at the boundary --
  * core/ (fc/types.h) expects g and deg/s (see attitude_filter.h).
  *
- * Uses the global Wire object -- call Wire.begin(sda, scl) in main.cpp
- * before ImuLsm9ds1::begin(). */
+ * Uses Wire1 (the ESP32-S3's second I2C controller), kept deliberately
+ * separate from the BMP280's bus (Wire) -- call Wire1.begin(sda, scl) in
+ * main.cpp before ImuLsm9ds1::begin(). The Adafruit_LSM9DS1 constructor
+ * picks the bus, so it's fixed here rather than passed into begin(). */
 class ImuLsm9ds1 {
    public:
     bool begin();
@@ -22,5 +25,5 @@ class ImuLsm9ds1 {
     bool read(fc_imu_sample_t *out);
 
    private:
-    Adafruit_LSM9DS1 lsm_;
+    Adafruit_LSM9DS1 lsm_{&Wire1};
 };

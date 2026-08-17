@@ -57,7 +57,11 @@ static void init_nvs() {
 }
 
 static void init_sensors() {
-    Wire.begin(PIN_I2C_SDA, PIN_I2C_SCL, 400000U);
+    /* Two separate I2C buses -- BMP280 on Wire, LSM9DS1 on Wire1 -- rather
+     * than sharing one bus between both sensors (both would work; kept
+     * separate here since that's the wiring that was actually done). */
+    Wire.begin(PIN_BARO_I2C_SDA, PIN_BARO_I2C_SCL, 400000U);
+    Wire1.begin(PIN_IMU_I2C_SDA, PIN_IMU_I2C_SCL, 400000U);
 
     if (!s_imu.begin()) {
         log_e("main: LSM9DS1 init failed -- check wiring/I2C address");
